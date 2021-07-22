@@ -30,7 +30,7 @@
 #include <soc/qcom/lge/board_lge.h>
 #include "inc/config.h"
 
-#ifdef CONFIG_LVACFQ_V6
+#ifdef CONFIG_SND_LGE_TX_NXP_LIB
 #include <linux/extcon.h>
 #endif
 
@@ -133,7 +133,7 @@ static enum tfa98xx_exception_case
 	tfa_exception = TFA98XX_NO_EXCEPTION;
 #endif
 
-#ifdef CONFIG_LVACFQ_V6
+#ifdef CONFIG_SND_LGE_TX_NXP_LIB
 struct extcon_dev *edev;
 static const unsigned int tfa98xx_cable[] = {
 	EXTCON_MECHANICAL,
@@ -376,7 +376,7 @@ static void tfa98xx_inputdev_unregister(struct tfa98xx *tfa98xx)
 	__tfa98xx_inputdev_check_register(tfa98xx, true);
 }
 
-#if defined(CONFIG_LVACFQ_V6)
+#if defined(CONFIG_SND_LGE_TX_NXP_LIB)
 void tfa98xx_extcon_set_state(int ram_state)
 {
 	pr_info("%s enter: ram_status = %d\n",__func__, ram_state);
@@ -1128,42 +1128,6 @@ static ssize_t tfa98xx_dbgfs_dsp_state_set(struct file *file,
 	}
 
 	return count;
-}
-
-static void tfa98xx_set_dsp_configured(struct tfa98xx *tfa98xx)
-{
-	static int is_configured; /* reset by default */
-
-	switch (tfa98xx->dsp_init) {
-	case TFA98XX_DSP_INIT_DONE:
-	case TFA98XX_DSP_INIT_INVALIDATED:
-	case TFA98XX_DSP_INIT_RECOVER:
-		/* set working if already running */
-		is_configured = 1;
-		break;
-	case TFA98XX_DSP_INIT_STOPPED:
-		if (handles_local[tfa98xx->handle].ext_dsp) {
-			/* preserve state except pstream off */
-			if (tfa98xx->pstream == 0)
-				is_configured = 0;
-		} else {
-			/* reset for embedded DSP case */
-			is_configured = 0;
-		}
-		break;
-	case TFA98XX_DSP_INIT_FAIL:
-	case TFA98XX_DSP_INIT_PENDING:
-	default:
-		is_configured = 0;
-		break;
-	}
-
-	pr_debug("%s: dsp_init %d, is_cofigured %d\n", __func__,
-		tfa98xx->dsp_init, is_configured);
-
-	handles_local[tfa98xx->handle].is_configured = is_configured;
-
-	return;
 }
 
 static ssize_t tfa98xx_dbgfs_fw_state_get(struct file *file,
@@ -1988,7 +1952,6 @@ static int tfa98xx_set_profile(struct snd_kcontrol *kcontrol,
 	 * trigger a tfa_start.
 	 */
 	tfa98xx->dsp_init = TFA98XX_DSP_INIT_INVALIDATED;
-	tfa98xx_set_dsp_configured(tfa98xx);
 
 	return 1;
 }
@@ -2172,7 +2135,6 @@ static int tfa98xx_set_stop_ctl(struct snd_kcontrol *kcontrol,
 		mutex_lock(&tfa98xx->dsp_lock);
 		tfa_stop();
 		tfa98xx->dsp_init = TFA98XX_DSP_INIT_STOPPED;
-		tfa98xx_set_dsp_configured(tfa98xx);
 		mutex_unlock(&tfa98xx->dsp_lock);
 	}
 
@@ -3208,7 +3170,6 @@ tfa98xx_container_loaded(const struct firmware *cont,	void *context)
 			tfa98xx->dsp_init = TFA98XX_DSP_INIT_DONE;
 		else if ((int)tfa_err == TFA98XX_ERROR_NOT_SUPPORTED)
 			tfa98xx->dsp_fw_state = TFA98XX_DSP_FW_FAIL;
-		tfa98xx_set_dsp_configured(tfa98xx);
 		mutex_unlock(&tfa98xx->dsp_lock);
 	}
 
@@ -3409,8 +3370,6 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 			reschedule = true;
 		} else {
 			/* Subsystem ready, tfa init complete */
-			tfa98xx->dsp_init = TFA98XX_DSP_INIT_DONE;
-			tfa98xx_set_dsp_configured(tfa98xx);
 			dev_dbg(&tfa98xx->i2c->dev,
 						"tfa_start success (%d)\n",
 						tfa98xx->init_count);
@@ -3442,8 +3401,6 @@ static void tfa98xx_dsp_init(struct tfa98xx *tfa98xx)
 	}
 	if (failed) {
 		tfa98xx->dsp_init = TFA98XX_DSP_INIT_FAIL;
-		tfa98xx_set_dsp_configured(tfa98xx);
-
 		/* cancel other pending init works */
 		cancel_delayed_work(&tfa98xx->init_work);
 		tfa98xx->init_count = 0;
@@ -3958,7 +3915,6 @@ static int _tfa98xx_stop(struct tfa98xx *tfa98xx)
 	pr_info("%s: stop tfa amp \n", __func__);
 	tfa_stop();
 	tfa98xx->dsp_init = TFA98XX_DSP_INIT_STOPPED;
-	tfa98xx_set_dsp_configured(tfa98xx);
 	mutex_unlock(&tfa98xx->dsp_lock);
 
 	return 0;
@@ -4087,7 +4043,7 @@ static int tfa98xx_probe(struct snd_soc_codec *codec)
 	tfa_exception = TFA98XX_NO_EXCEPTION;
 #endif
 
-#ifdef CONFIG_LVACFQ_V6
+#ifdef CONFIG_SND_LGE_TX_NXP_LIB
 	// 0x34 : speaker, 0x35 : receiver,
 	// RaM is working on reciever, so don't need to register extcon devices twice.
 	if (tfa98xx->i2c->addr == 0x34) {
