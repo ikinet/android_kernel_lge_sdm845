@@ -891,6 +891,41 @@ static int prefer_idle_write_wrapper(struct cgroup_subsys_state *css,
 }
 #endif
 
+int schedtune_prefer_iowait(struct task_struct *p)
+{
+	struct schedtune *st;
+	int prefer_iowait;
+
+	if (unlikely(!schedtune_initialized))
+		return 0;
+
+	/* Get prefer_iowait value */
+	rcu_read_lock();
+	st = task_schedtune(p);
+	prefer_iowait = st->prefer_iowait;
+	rcu_read_unlock();
+
+	return prefer_iowait;
+}
+
+static u64 prefer_iowait_read(struct cgroup_subsys_state *css,
+			struct cftype *cft)
+{
+	struct schedtune *st = css_st(css);
+
+	return st->prefer_iowait;
+}
+
+static int prefer_iowait_write(struct cgroup_subsys_state *css,
+			struct cftype *cft, u64 prefer_iowait)
+{
+	struct schedtune *st = css_st(css);
+
+	st->prefer_iowait = !!prefer_iowait;
+	return 0;
+}
+
+static struct cftype files[] = {
 #ifdef CONFIG_SCHED_WALT
 	{
 		.name = "sched_boost_no_override",

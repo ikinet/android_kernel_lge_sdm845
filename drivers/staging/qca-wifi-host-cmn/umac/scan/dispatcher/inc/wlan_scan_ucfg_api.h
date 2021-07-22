@@ -188,14 +188,6 @@ ucfg_scan_get_pno_match(struct wlan_objmgr_vdev *vdev)
 }
 #endif /* FEATURE_WLAN_SCAN_PNO */
 /**
- * ucfg_scm_scan_free_scan_request_mem() - Free scan request memory
- * @req: scan_start_request object
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS ucfg_scm_scan_free_scan_request_mem(struct scan_start_request *req);
-
-/**
  * ucfg_scan_start() - Public API to start a scan
  * @req: start scan req params
  *
@@ -664,14 +656,6 @@ bool ucfg_scan_wake_lock_in_user_scan(struct wlan_objmgr_psoc *psoc);
  * Return: Max Scan commands allowed count
  */
 uint32_t ucfg_scan_get_max_cmd_allowed(void);
-
-/**
- * wlan_scan_get_aging_time  - Get the scan aging time config
- * @psoc: psoc context
- *
- * Return: Scan aging time config
- */
-qdf_time_t ucfg_scan_get_aging_time(struct wlan_objmgr_psoc *psoc);
 
 /**
  * ucfg_scan_cfg_set_active_dwelltime() - API to set scan active dwelltime
