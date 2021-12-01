@@ -6,7 +6,7 @@
 #define pr_fmt(fmt) "devfreq_boost: " fmt
 
 #include <linux/devfreq_boost.h>
-#include <linux/state_notifier.h>
+#include <linux/msm_drm_notify.h>
 #include <linux/input.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
@@ -31,7 +31,7 @@ struct boost_dev {
 
 struct df_boost_drv {
 	struct boost_dev devices[DEVFREQ_MAX];
-	struct notifier_block state_notif;
+	struct notifier_block msm_drm_notif;
 };
 
 static void devfreq_input_unboost(struct work_struct *work);
@@ -179,23 +179,28 @@ static int devfreq_boost_thread(void *data)
 
 	return 0;
 }
-static int state_notifier_cb(struct notifier_block *nb, unsigned long action,
+
+static int msm_drm_notifier_cb(struct notifier_block *nb, unsigned long action,
 			  void *data)
 {
-	struct df_boost_drv *d = container_of(nb, typeof(*d), state_notif);
+	struct df_boost_drv *d = container_of(nb, typeof(*d), msm_drm_notif);
 	int i;
-	struct state_event *evdata = data;
+	struct msm_drm_notifier *evdata = data;
 	int *blank = evdata->data;
+
+	/* Parse framebuffer blank events as soon as they occur */
+	if (action != MSM_DRM_EARLY_EVENT_BLANK)
+		return NOTIFY_OK;
 
 	/* Boost when the screen turns on and unboost when it turns off */
 	for (i = 0; i < DEVFREQ_MAX; i++) {
 		struct boost_dev *b = d->devices + i;
 
-		if (*blank == STATE_NOTIFIER_BOOST) {
+		if (*blank == MSM_DRM_BLANK_UNBLANK) {
 			clear_bit(SCREEN_OFF, &b->state);
 			__devfreq_boost_kick_max(b,
 				CONFIG_DEVFREQ_WAKE_BOOST_DURATION_MS);
-		} else if (*blank == STATE_NOTIFIER_SUSPEND) {
+		} else {
 			set_bit(SCREEN_OFF, &b->state);
 			wake_up(&b->boost_waitq);
 		}
@@ -313,11 +318,11 @@ static int __init devfreq_boost_init(void)
 		goto stop_kthreads;
 	}
 
-	d->state_notif.notifier_call = state_notifier_cb;
-	d->state_notif.priority = INT_MAX;
-	ret = state_register_client(&d->state_notif);
+	d->msm_drm_notif.notifier_call = msm_drm_notifier_cb;
+	d->msm_drm_notif.priority = INT_MAX;
+	ret = msm_drm_register_client(&d->msm_drm_notif);
 	if (ret) {
-		pr_err("Failed to register state notifier, err: %d\n", ret);
+		pr_err("Failed to register msm_drm notifier, err: %d\n", ret);
 		goto unregister_handler;
 	}
 
