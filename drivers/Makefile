@@ -190,6 +190,6 @@ obj-$(CONFIG_TSPDRV) += tspdrv/
 # Mobicore
 ifeq ($(TARGET_LGE_REGION), KR)
 obj-$(CONFIG_TRUSTONIC_TEE) += gud/
-else ifneq($(CONFIG_TRUSTONIC_TEE_GUD), y)
+ifneq($(CONFIG_TRUSTONIC_TEE_GUD), y)
 obj-$(CONFIG_TRUSTONIC_TEE) += gud/
 endif

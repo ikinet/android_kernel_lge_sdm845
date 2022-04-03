@@ -5,3 +5,4 @@
 *.dsp
 ihex2fw
 !/atmf04/*.fw
+!/almf04/*.fw
